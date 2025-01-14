@@ -85,12 +85,25 @@ def randomize_connection():
     
     return [random_country, random_city]
 
+def is_mega_download_active():
+    """Check if MEGAsync is active and consuming network or CPU resources."""
+    for process in psutil.process_iter(['name', 'cpu_percent']):
+        if process.info['name'] == 'MEGAsync':
+            # Check CPU usage (could indicate activity)
+            if process.cpu_percent(interval=3) > 29.0:
+                return True
+    return False
+
+
 if __name__ == "__main__":
-    server = randomize_connection()
-    set_mullvad_server(server[0], server[1])
-    connect_mullvad()
+    download_status = is_mega_download_active()
+    if download_status != True:
+        server = randomize_connection()
+        set_mullvad_server(server[0], server[1])
+        connect_mullvad()
+
+        time.sleep(10)  # Wait a few seconds before restarting MEGAsync
+
+        restart_megasync()
     
-    time.sleep(15)  # Wait a few seconds before restarting MEGAsync
-    
-    restart_megasync()
     stop_terminal()
