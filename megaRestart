@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+
+import os
+import psutil
+import time
+
+def stop_megasync():
+    """Stops the MEGAsync process."""
+    for process in psutil.process_iter(['name']):
+        if process.info['name'] == 'MEGAsync':
+            print("Stopping MEGAsync...")
+            process.terminate()
+            process.wait()  # Wait for the process to terminate
+            print("MEGAsync stopped.")
+            return True
+    print("MEGAsync is not running.")
+    return False
+
+def start_megasync():
+    """Starts the MEGAsync process on macOS."""
+    try:
+        print("Starting MEGAsync...")
+        os.system("open -a MEGAsync")  # Open the MEGAsync app
+        print("MEGAsync started.")
+    except Exception as e:
+        print(f"Error starting MEGAsync: {e}")
+
+def restart_megasync():
+    """Restarts MEGAsync."""
+    if stop_megasync():
+        time.sleep(3)  # Wait a few seconds before restarting
+    start_megasync()
+    
+    for process in psutil.process_iter(['name']):
+        if process.info['name'] == 'Terminal':
+            print("Stopping MEGAsync...")
+            process.terminate()
+            process.wait() 
+    
+
+if __name__ == "__main__":
+    restart_megasync()
