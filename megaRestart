@@ -1,8 +1,41 @@
 #!/usr/bin/env python3
-
 import os
 import psutil # type: ignore
 import time
+import subprocess
+from vpnhelp import vpn_locations
+import random
+
+
+def set_mullvad_server(country, city=None, server=None):
+    """Set the Mullvad server location."""
+    command = ["mullvad", "relay", "set", "location", country]
+    if city:
+        command.append(city)
+    if server:
+        command.append(server)
+
+    try:
+        subprocess.run(command, check=True)
+        print(f"Set Mullvad server to {country}, {city or ''}, {server or ''}")
+    except subprocess.CalledProcessError:
+        print("Failed to set Mullvad server.")
+
+def connect_mullvad():
+    """Connect to Mullvad VPN."""
+    try:
+        subprocess.run(["mullvad", "connect"], check=True)
+        print("Connected to Mullvad VPN.")
+    except subprocess.CalledProcessError:
+        print("Failed to connect to Mullvad VPN.")
+
+def disconnect_mullvad():
+    """Disconnect from Mullvad VPN."""
+    try:
+        subprocess.run(["mullvad", "disconnect"], check=True)
+        print("Disconnected from Mullvad VPN.")
+    except subprocess.CalledProcessError:
+        print("Failed to disconnect from Mullvad VPN.")
 
 def stop_megasync():
     """Stops the MEGAsync process."""
@@ -31,12 +64,33 @@ def restart_megasync():
         time.sleep(3)  # Wait a few seconds before restarting
     start_megasync()
     
+def stop_terminal():
+    """Stops the Terminal process."""
     for process in psutil.process_iter(['name']):
         if process.info['name'] == 'Terminal':
-            print("Stopping MEGAsync...")
+            print("Stopping Terminal...")
             process.terminate()
-            process.wait() 
+            process.wait()  # Wait for the process to terminate
+            print("Terminal stopped.")
+            return True
+    print("Terminal is not running.")
+    return False
     
+def randomize_connection():
+# Randomly select a key (country code)
+    random_country = random.choice(list(vpn_locations.keys()))
+
+# Randomly select a city from the selected country's cities
+    random_city = random.choice(vpn_locations[random_country])
+    
+    return [random_country, random_city]
 
 if __name__ == "__main__":
+    server = randomize_connection()
+    set_mullvad_server(server[0], server[1])
+    connect_mullvad()
+    
+    time.sleep(15)  # Wait a few seconds before restarting MEGAsync
+    
     restart_megasync()
+    stop_terminal()
