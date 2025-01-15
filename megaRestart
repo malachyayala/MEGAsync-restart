@@ -4,6 +4,7 @@ import psutil # type: ignore
 import time
 import subprocess
 import random
+import shutil
 
 vpn_locations = {
     "al": ["tia"],
@@ -59,6 +60,34 @@ vpn_locations = {
     ]
 }
 
+def move_mkv_files(source_dir, destination_dir):
+    # Check if source and destination directories exist
+    if not os.path.exists(source_dir):
+        print(f"Source directory '{source_dir}' does not exist.")
+        return
+    if not os.path.exists(destination_dir):
+        os.makedirs(destination_dir)
+        print(f"Created destination directory '{destination_dir}'.")
+
+    for file_name in os.listdir(source_dir):
+        # Ignore non-.mkv files and AppleDouble files
+        if file_name.endswith('.mkv') and not file_name.startswith("._"):
+            # Full path to the source file
+            source_file = os.path.join(source_dir, file_name)
+            
+            # Create a new folder in the destination directory with the file name (without extension)
+            folder_name = os.path.splitext(file_name)[0]  # Remove the .mkv extension
+            new_folder_path = os.path.join(destination_dir, folder_name)
+            os.makedirs(new_folder_path, exist_ok=True)
+            
+            # Move the file to the new folder
+            destination_file = os.path.join(new_folder_path, file_name)
+            shutil.move(source_file, destination_file)
+            print(f"Moved '{source_file}' to '{destination_file}'.")
+    
+    print("All .mkv files have been moved.")
+
+
 def set_mullvad_server(country, city=None, server=None):
     """Set the Mullvad server location."""
     command = ["mullvad", "relay", "set", "location", country]
@@ -102,7 +131,8 @@ def stop_megasync():
     return False
 
 def start_megasync():
-    """Starts the MEGAsync process on macOS."""
+    """
+Starts the MEGAsync process on macOS."""
     try:
         print("Starting MEGAsync...")
         os.system("open -a MEGAsync")  # Open the MEGAsync app
@@ -123,9 +153,8 @@ def stop_terminal():
             print("Stopping Terminal...")
             process.terminate()
             process.wait()  # Wait for the process to terminate
-            print("Terminal stopped.")
+            print("Terminal stopped. \n")
             return True
-    print("Terminal is not running.")
     return False
     
 def randomize_connection():
@@ -142,20 +171,33 @@ def is_mega_download_active():
     for process in psutil.process_iter(['name', 'cpu_percent']):
         if process.info['name'] == 'MEGAsync':
             # Check CPU usage (could indicate activity)
-            if process.cpu_percent(interval=3) > 29.0:
+            if process.cpu_percent(interval=3) > 35.0:
                 return True
     return False
 
+def is_mullvad_inactive():
+    """Check Mullvad VPN connection status."""
+    result = subprocess.run(["mullvad", "status"], capture_output=True, text=True)
+    return "Disconnected" in result.stdout
+
 
 if __name__ == "__main__":
-    download_status = is_mega_download_active()
-    if download_status != True:
-        server = randomize_connection()
-        set_mullvad_server(server[0], server[1])
-        connect_mullvad()
+    mv_con = is_mullvad_inactive()
+    if mv_con != True:
+        print(mv_con)     
+        download_status = is_mega_download_active()
+        if download_status != True:
+            server = randomize_connection()
+            set_mullvad_server(server[0], server[1])
+            connect_mullvad()
 
-        time.sleep(10)  # Wait a few seconds before restarting MEGAsync
+            time.sleep(5)  # Wait a few seconds before restarting MEGAsync
 
-        restart_megasync()
-    
+            restart_megasync()
+        else:
+            print('Restart not required')
+
+    source_directory = "/Volumes/Knowhere/Downloads"
+    destination_directory = "/Volumes/Knowhere/Movies"
+    move_mkv_files(source_directory, destination_directory)
     stop_terminal()
